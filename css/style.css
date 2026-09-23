@@ -581,3 +581,8 @@ p { margin: 0 0 1em; max-width: 60ch; }
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
   .js [data-reveal] { opacity: 1; transform: none; }
 }
+
+@media (max-width: 600px) {
+  .anno span, .anno i::after { display: none; }
+  .card img.contain { object-fit: cover; padding: 0; object-position: 50% 30%; }
+}
