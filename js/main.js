@@ -279,6 +279,28 @@
   ScrollTrigger.create({ trigger: stage, start: 'top 55%', once: true, onEnter: () => setTimeout(() => auto && setMode('pistol'), 700) });
   stage.addEventListener('click', () => { auto = false; setMode(stage.dataset.mode === 'pistol' ? 'straight' : 'pistol'); });
 
+  /* ---------- Dasox multi-function switch ---------- */
+  const sw = $('.switch');
+  if (sw) {
+    const frames = $$('.switch__view img', sw), range = $('.switch__range', sw), idx = $('.js-swidx', sw), view = $('.switch__view', sw);
+    let swTouched = false;
+    const setPos = n => {
+      n = Math.max(1, Math.min(4, n));
+      frames.forEach((f, i) => f.classList.toggle('is-on', i === n - 1));
+      range.value = n; idx.textContent = String(n).padStart(2, '0');
+    };
+    range.addEventListener('input', () => { swTouched = true; setPos(+range.value); });
+    view.addEventListener('pointermove', e => {
+      if (e.pointerType === 'touch' && !e.buttons) return;
+      const r = view.getBoundingClientRect(); swTouched = true;
+      setPos(Math.floor((e.clientX - r.left) / r.width * 4) + 1);
+    });
+    // demo once when it scrolls into view
+    ScrollTrigger.create({ trigger: sw, start: 'top 65%', once: true, onEnter: () => {
+      [2, 3, 4, 1].forEach((n, i) => setTimeout(() => !swTouched && setPos(n), 600 * (i + 1)));
+    } });
+  }
+
   /* ---------- loupe magnifier ---------- */
   $$('.loupe').forEach(box => {
     const img = $('img', box);
