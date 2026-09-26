@@ -206,7 +206,7 @@
   /* ---------- progress lines + accent colour per section ---------- */
   const sections = $$('main > section');
   const lines = $('.progress__lines');
-  const LABELS = { index: 'Index', p01: '01 Dasox', p02: '02 Buffet counter', p03: '03 Masar', p04: '04 Concetto', about: 'About', contact: 'Contact' };
+  const LABELS = { index: 'Index', p01: '01 Dasox', p02: '02 Buffet counter', p03: '03 Folssé', p04: '04 Masar', p05: '05 Concetto', about: 'About', contact: 'Contact' };
   sections.forEach(sec => {
     const b = document.createElement('button');
     const label = LABELS[sec.id] || 'Intro';
@@ -236,9 +236,25 @@
   });
 
   /* ---------- reveals ---------- */
-  ScrollTrigger.batch('[data-reveal]', {
-    start: 'top 90%',
-    onEnter: b => gsap.to(b, { opacity: 1, y: 0, duration: 1.1, ease: 'expo.out', stagger: .08, overwrite: true })
+  const reveal = els => {
+    els.forEach(el => (el.dataset.shown = 1));
+    // after a long jump the batch holds everything scrolled past: show those instantly,
+    // animate only what's on screen, and cap the stagger so nothing waits seconds
+    const onScreen = els.filter(el => el.getBoundingClientRect().bottom > 0);
+    const passed = els.filter(el => !onScreen.includes(el));
+    if (passed.length) gsap.set(passed, { opacity: 1, y: 0, overwrite: true });
+    if (onScreen.length) gsap.to(onScreen, { opacity: 1, y: 0, duration: 1.1, ease: 'expo.out', stagger: { amount: Math.min(.08 * (onScreen.length - 1), .4) }, overwrite: true });
+  };
+  ScrollTrigger.batch('[data-reveal]', { start: 'top 90%', onEnter: reveal });
+
+  // A refresh (e.g. lazy images changing the page height) can flip a trigger to
+  // "active" without firing onEnter, leaving content hidden — catch those up.
+  ScrollTrigger.addEventListener('refresh', () => {
+    const missed = $$('[data-reveal]').filter(el => !el.dataset.shown && el.getBoundingClientRect().top < innerHeight * .9);
+    if (missed.length) reveal(missed);
+    ScrollTrigger.getAll().forEach(t => {
+      if (t.animation && !t.vars.scrub && t.progress > 0 && t.animation.progress() === 0) t.animation.play();
+    });
   });
 
   /* ---------- parallax ---------- */
@@ -325,6 +341,43 @@
     // demo once when it scrolls into view
     ScrollTrigger.create({ trigger: sw, start: 'top 65%', once: true, onEnter: () => {
       [2, 3, 4, 1].forEach((n, i) => setTimeout(() => !swTouched && setPos(n), 600 * (i + 1)));
+    } });
+  }
+
+  /* ---------- Dasox: complete sketch wipes in like a pen stroke ---------- */
+  const skw = $('.sketch-wipe img');
+  if (skw && !reduce) gsap.fromTo(skw, { clipPath: 'inset(0 100% 0 0)' }, {
+    clipPath: 'inset(0 0% 0 0)', ease: 'none',
+    scrollTrigger: { trigger: '.sketch-wipe', start: 'top 85%', end: 'bottom 55%', scrub: 1 }
+  });
+
+  /* ---------- Folssé: reference-board pins <-> legend ---------- */
+  const pins = $$('.fol-board .pin'), legendItems = $$('.fol-board__legend li');
+  const lightPin = i => {
+    pins.forEach(p => p.classList.toggle('is-on', p.dataset.i === i));
+    legendItems.forEach(l => l.classList.toggle('is-on', l.dataset.i === i));
+  };
+  [...pins, ...legendItems].forEach(el => {
+    el.addEventListener('pointerenter', () => lightPin(el.dataset.i));
+    el.addEventListener('pointerleave', () => lightPin(null));
+    el.addEventListener('click', e => { e.stopPropagation(); lightPin(el.classList.contains('is-on') ? null : el.dataset.i); });
+  });
+
+  /* ---------- Folssé: packed -> flat -> assembled ---------- */
+  const fStage = $('.fol-assembly__stage');
+  if (fStage) {
+    const shots = $$('img', fStage), stepBtns = $$('.steps3__btn'), stepIdx = $('.js-stepidx');
+    let step = 0, stepTouched = false;
+    const setStep = n => {
+      step = (n + shots.length) % shots.length;
+      shots.forEach((s, i) => s.classList.toggle('is-on', i === step));
+      stepBtns.forEach((b, i) => b.classList.toggle('is-on', i === step));
+      stepIdx.textContent = String(step + 1).padStart(2, '0');
+    };
+    stepBtns.forEach(b => b.addEventListener('click', () => { stepTouched = true; setStep(+b.dataset.step); }));
+    fStage.addEventListener('click', () => { stepTouched = true; setStep(step + 1); });
+    ScrollTrigger.create({ trigger: fStage, start: 'top 60%', once: true, onEnter: () => {
+      [1, 2].forEach((n, i) => setTimeout(() => !stepTouched && setStep(n), 1300 * (i + 1)));
     } });
   }
 
