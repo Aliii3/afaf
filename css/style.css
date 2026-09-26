@@ -513,9 +513,8 @@ p { margin: 0 0 1em; max-width: 60ch; }
 /* ---------- about ---------- */
 .about { display: grid; grid-template-columns: 5fr 7fr; gap: clamp(24px, 5vw, 80px); padding: clamp(90px, 12vw, 160px) var(--pad); }
 .about__img { position: relative; align-self: start; position: sticky; top: 80px; }
-.about__img img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 20%; filter: grayscale(1); transition: filter .8s; }
-.about__img:hover img { filter: grayscale(0); }
-.about__tag { position: absolute; right: -10px; bottom: 24px; transform: rotate(-4deg); }
+.about__img img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 100%; }
+.about__tag { position: absolute; left: -10px; top: 24px; transform: rotate(-4deg); }
 .about__lede { font-size: clamp(19px, 1.7vw, 25px); line-height: 1.35; letter-spacing: -.01em; max-width: 36ch; }
 .cv { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 50px; }
 .cv h4 { margin: 0 0 14px; font-weight: 500; color: var(--mute); }
