@@ -28,7 +28,13 @@
   const scrollTo = target => {
     const el = typeof target === 'string' ? $(target) : target;
     if (!el) return;
-    lenis ? lenis.scrollTo(el, { offset: 0, duration: 1.6 }) : el.scrollIntoView({ behavior: 'smooth' });
+    if (!lenis) return el.scrollIntoView({ behavior: 'smooth' });
+    // lazy images above the target can grow the page mid-flight, so re-aim on arrival
+    let tries = 0;
+    const go = d => lenis.scrollTo(el, { offset: 0, duration: d, onComplete: () => {
+      if (Math.abs(el.getBoundingClientRect().top) > 4 && tries++ < 3) go(.5);
+    } });
+    go(1.6);
   };
   $$('[data-scroll]').forEach(a => a.addEventListener('click', e => {
     const id = a.getAttribute('href');
@@ -183,11 +189,32 @@
     }
   });
 
+  /* ---------- Concetto strip (pinned horizontal, like the storyboard) ---------- */
+  const rt = $('.rail__track'), pct = $('.js-railpct');
+  const railDist = () => Math.max(0, rt.scrollWidth - innerWidth);
+  gsap.to(rt, {
+    x: () => -railDist(), ease: 'none',
+    scrollTrigger: {
+      trigger: '.rail__pin', start: 'top top', end: () => '+=' + railDist(), pin: true, scrub: 1, invalidateOnRefresh: true,
+      onUpdate: s => {
+        gsap.set('.rail__bar i', { scaleX: s.progress });
+        pct.textContent = String(Math.round(s.progress * 100)).padStart(3, '0') + '%';
+      }
+    }
+  });
+
   /* ---------- progress lines + accent colour per section ---------- */
   const sections = $$('main > section');
   const lines = $('.progress__lines');
-  sections.forEach(() => lines.appendChild(document.createElement('i')));
-  const lineEls = $$('i', lines);
+  const LABELS = { index: 'Index', p01: '01 Dasox', p02: '02 Buffet counter', p03: '03 Masar', p04: '04 Concetto', about: 'About', contact: 'Contact' };
+  sections.forEach(sec => {
+    const b = document.createElement('button');
+    const label = LABELS[sec.id] || 'Intro';
+    b.type = 'button'; b.dataset.label = label; b.setAttribute('aria-label', 'Go to ' + label);
+    b.addEventListener('click', () => scrollTo(sec));
+    lines.appendChild(b);
+  });
+  const lineEls = $$('button', lines);
   const secnum = $('.js-secnum');
   sections.forEach((sec, i) => {
     ScrollTrigger.create({
@@ -267,13 +294,13 @@
     toggle.classList.toggle('is-pistol', m === 'pistol');
     $$('.toggle__btn', toggle).forEach(b => b.classList.toggle('is-on', b.dataset.mode === m));
     const o = { a: parseInt(angle.textContent) || 0 };
-    gsap.to(o, { a: m === 'pistol' ? 90 : 0, duration: 1, ease: 'expo.out', onUpdate: () => {
+    gsap.to(o, { a: m === 'pistol' ? 80 : 0, duration: 1, ease: 'expo.out', onUpdate: () => {
       angle.textContent = Math.round(o.a) + '°';
-      arc.style.opacity = o.a / 90 * .9 + .1;
+      arc.style.opacity = o.a / 80 * .9 + .1;
       arc.style.transform = `rotate(${o.a - 90}deg)`; arc.style.transformOrigin = '50px 50px';
     } });
   };
-  $$('.toggle__btn', toggle).forEach(b => b.addEventListener('click', () => { auto = false; setMode(b.dataset.mode); }));
+  $$('.toggle__btn', toggle).forEach(b => b.addEventListener('click', e => { e.stopPropagation(); auto = false; setMode(b.dataset.mode); }));
   let auto = true;
   setMode('straight');
   ScrollTrigger.create({ trigger: stage, start: 'top 55%', once: true, onEnter: () => setTimeout(() => auto && setMode('pistol'), 700) });
@@ -340,55 +367,6 @@
     d.addEventListener('click', e => { e.stopPropagation(); const was = d.classList.contains('is-open'); $$('.dot.is-open').forEach(x => x.classList.remove('is-open')); d.classList.toggle('is-open', !was); });
   });
   document.addEventListener('click', () => $$('.dot.is-open').forEach(x => x.classList.remove('is-open')));
-
-  /* ---------- product cards: tilt + modal ---------- */
-  const DATA = {
-    bike: { cat: 'Bicycle · Rhino · Team of 4', title: 'Cervelo P5X', text: '3D modelling and rendering an entire Cervelo P5X bicycle in Rhino, in teams of four: each group was responsible for a section, and within it each person was assigned a bike piece.', imgs: ['other-bike2', 'other-riser1', 'other-riser2', 'other-riser3'] },
-    riser: { cat: 'Component · Rhino', title: 'Riser post', text: 'The bicycle’s riser and angle-adjustment part, which ensures comfort and aerodynamics. My assigned piece of the Cervelo P5X team model.', imgs: ['other-riser1', 'other-riser2', 'other-riser3', 'other-bike'] },
-    display: { cat: 'Display unit · Concept', title: 'Material balance', text: 'A display unit to showcase sustainable materials, inspired by the traditional weight balance used in vegetable markets. One side displays the raw components of the material; the other, the final sustainable material — paying homage to timeless marketplace tools.', imgs: ['other-v2', 'other-v1', 'other-v3', 'other-v4', 'other-v5', 'other-display2'] },
-    ext: { cat: 'Object · Render', title: 'Fire extinguisher', text: 'A modelling and rendering exercise — geometry, decals and materials studied under different lighting setups.', imgs: ['other-e1', 'other-e2', 'other-e3', 'other-e4', 'other-ext-top'] }
-  };
-  const modal = $('.modal'), mc = $('.modal__content');
-  const openModal = key => {
-    const d = DATA[key]; if (!d) return;
-    mc.innerHTML = `<span class="tag">${d.cat}</span><h3 id="modal-title">${d.title}</h3><p>${d.text}</p><div class="modal__gal">${d.imgs.map((s, i) => `<img src="assets/img/${s}.webp" alt="" class="${i === 0 ? 'full' : ''}">`).join('')}</div>`;
-    modal.classList.add('is-open'); modal.setAttribute('aria-hidden', 'false');
-    lenis?.stop(); $('.modal__close').focus();
-    gsap.from('.modal__content > *', { y: 30, opacity: 0, stagger: .06, duration: .8, ease: 'expo.out', delay: .2 });
-  };
-  const closeModal = () => { modal.classList.remove('is-open'); modal.setAttribute('aria-hidden', 'true'); lenis?.start(); };
-  $$('[data-close]').forEach(b => b.addEventListener('click', closeModal));
-  addEventListener('keydown', e => e.key === 'Escape' && closeModal());
-  $$('.pcard').forEach(c => {
-    c.addEventListener('click', () => openModal(c.dataset.modal));
-    if (!fine || reduce) return;
-    c.addEventListener('pointermove', e => {
-      const r = c.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
-      gsap.to(c, { rotateY: x * 14, rotateX: -y * 14, transformPerspective: 800, duration: .5, ease: 'power3' });
-    });
-    c.addEventListener('pointerleave', () => gsap.to(c, { rotateY: 0, rotateX: 0, duration: .8, ease: 'elastic.out(1, .5)' }));
-  });
-
-  /* ---------- Concetto draggable rail ---------- */
-  const rail = $('.rail'), rt = $('.rail__track'), pct = $('.js-railpct');
-  let pos = 0, target2 = 0, dragging = false, sx = 0, sp = 0, lastX = 0, vel = 0;
-  const max = () => Math.max(0, rt.scrollWidth - rail.clientWidth);
-  const clamp = v => Math.max(-max(), Math.min(0, v));
-  rail.addEventListener('pointerdown', e => { dragging = true; sx = e.clientX; sp = target2; lastX = e.clientX; vel = 0; rail.setPointerCapture(e.pointerId); });
-  rail.addEventListener('pointermove', e => { if (!dragging) return; target2 = clamp(sp + (e.clientX - sx) * 1.3); vel = e.clientX - lastX; lastX = e.clientX; });
-  const up = () => { if (!dragging) return; dragging = false; target2 = clamp(target2 + vel * 14); };
-  rail.addEventListener('pointerup', up); rail.addEventListener('pointercancel', up);
-  // also drift with page scroll
-  ScrollTrigger.create({
-    trigger: rail, start: 'top bottom', end: 'bottom top',
-    onUpdate: s => { if (!dragging) target2 = clamp(target2 - s.getVelocity() * 0.012); }
-  });
-  gsap.ticker.add(() => {
-    pos += (target2 - pos) * 0.09;
-    rt.style.transform = `translate3d(${pos}px,0,0)`;
-    const m = max(); pct.textContent = String(Math.round(m ? (-pos / m) * 100 : 0)).padStart(3, '0') + '%';
-  });
 
   /* ---------- languages bars ---------- */
   $$('.langs i').forEach(i => ScrollTrigger.create({ trigger: i, start: 'top 90%', once: true, onEnter: () => i.style.setProperty('--p', i.style.getPropertyValue('--v')) }));
