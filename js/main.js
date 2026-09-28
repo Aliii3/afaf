@@ -181,25 +181,35 @@
   }
   const pin = $('.story__pin');
   const dist = () => track.scrollWidth - innerWidth + parseFloat(getComputedStyle(track).paddingLeft);
+  // Lenis already smooths the scroll, so no extra scrub smoothing here (it made the
+  // frames trail the bar); the bar reads the tween itself, i.e. where the frames really are.
+  // A refresh (lazy images, resize) rewinds and restores the tween with events
+  // suppressed, so onRefresh re-reads it too, or the bar would drop back to 0.
+  const storyBar = $('.story__bar i');
+  const setStoryBar = p => (storyBar.style.transform = `scaleX(${p})`);
   gsap.to(track, {
     x: () => -dist(), ease: 'none',
+    onUpdate() { setStoryBar(this.progress()); },
     scrollTrigger: {
-      trigger: pin, start: 'top top', end: () => '+=' + dist(), pin: true, scrub: 1, invalidateOnRefresh: true,
-      onUpdate: s => gsap.set('.story__bar i', { scaleX: s.progress })
+      trigger: pin, start: 'top top', end: () => '+=' + dist(), pin: true, scrub: true, invalidateOnRefresh: true,
+      onRefresh: self => setStoryBar(self.animation.progress())
     }
   });
 
   /* ---------- Concetto strip (pinned horizontal, like the storyboard) ---------- */
   const rt = $('.rail__track'), pct = $('.js-railpct');
   const railDist = () => Math.max(0, rt.scrollWidth - innerWidth);
+  const railBar = $('.rail__bar i');
+  const setRail = p => {
+    railBar.style.transform = `scaleX(${p})`;
+    pct.textContent = String(Math.round(p * 100)).padStart(3, '0') + '%';
+  };
   gsap.to(rt, {
     x: () => -railDist(), ease: 'none',
+    onUpdate() { setRail(this.progress()); },
     scrollTrigger: {
-      trigger: '.rail__pin', start: 'top top', end: () => '+=' + railDist(), pin: true, scrub: 1, invalidateOnRefresh: true,
-      onUpdate: s => {
-        gsap.set('.rail__bar i', { scaleX: s.progress });
-        pct.textContent = String(Math.round(s.progress * 100)).padStart(3, '0') + '%';
-      }
+      trigger: '.rail__pin', start: 'top top', end: () => '+=' + railDist(), pin: true, scrub: true, invalidateOnRefresh: true,
+      onRefresh: self => setRail(self.animation.progress())
     }
   });
 
